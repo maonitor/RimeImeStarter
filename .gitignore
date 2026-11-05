@@ -8,6 +8,9 @@ local.properties
 
 # Log/OS Files
 *.log
+build-log*.txt
+.DS_Store
+Thumbs.db
 
 # Android Studio generated files and folders
 captures/
@@ -33,3 +36,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Test reports / compatibility matrix artifacts
+app/build/reports/
+compatibility/report/

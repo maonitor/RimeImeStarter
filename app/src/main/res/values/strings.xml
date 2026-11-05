@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rime IME</string>
+    <string name="ime_name">Rime IME 中文输入法</string>
+    <string name="subtype_zh_cn">中文（拼音）</string>
+</resources>
