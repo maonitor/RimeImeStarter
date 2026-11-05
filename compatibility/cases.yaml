@@ -51,6 +51,12 @@ apps:
     risks: [换行, 长文本 composing]
 
 cases:
+  - id: C00
+    title: 键盘弹出不崩溃（阻塞项，真机实测发现）
+    apps: [native, wechat, chrome, flutter]
+    steps: [启用并设为默认输入法, 点任意输入框]
+    expected: [mInputShown=true, 无 FATAL EXCEPTION, 候选栏与四行按键完整可见]
+    risk: ComposeView 从 IME 窗口根 View（系统 parentPanel）找 ViewTreeLifecycleOwner，只挂在 ComposeView 上会崩
   - id: C01
     title: 拼音串进入 composing 区
     apps: [native, wechat, qq, chrome, flutter, xhs, note]

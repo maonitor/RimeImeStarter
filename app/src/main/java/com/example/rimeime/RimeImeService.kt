@@ -7,6 +7,7 @@ import android.os.Looper
 import android.text.InputType
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,12 @@ class RimeImeService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         val owner = checkNotNull(imeOwner)
+        // 真机实测：ComposeView.onAttachedToWindow 会从「窗口根 View」找
+        // ViewTreeLifecycleOwner（系统 IME 的 parentPanel），而不是从 ComposeView 自己找。
+        // 只挂 ComposeView 会在 InputMethodService.setInputView 时抛
+        // "ViewTreeLifecycleOwner not found from ... parentPanel" 直接崩溃。
+        // 所以在 attach 之前把 owner 挂到整个 decor 树上。
+        attachOwnersToWindowHierarchy(owner)
         val view = ComposeView(this).apply {
             // InputMethodService 不是 Activity，三个 owner 必须手动挂上，缺一即崩。
             // 交给 Java 辅助类：新版 lifecycle 把这些 ViewTree*Owner 对 Kotlin 隐藏了。
@@ -78,6 +85,29 @@ class RimeImeService : InputMethodService() {
         }
         inputViewRef = view
         return view
+    }
+
+    /**
+     * 把三个 owner 挂到 IME 窗口的 decor 树（含系统 parentPanel）上。
+     * 必须在 ComposeView attach 之前调用，否则 WindowRecomposer 找不到 LifecycleOwner。
+     */
+    private fun attachOwnersToWindowHierarchy(owner: ImeLifecycleOwner) {
+        val decor = try {
+            window?.window?.decorView
+        } catch (t: Throwable) {
+            Log.w(TAG, "拿不到 IME 窗口 decorView", t)
+            null
+        } ?: return
+
+        fun walk(view: View) {
+            ImeViewTreeOwners.attach(view, owner)
+            if (view is ViewGroup) {
+                for (index in 0 until view.childCount) {
+                    walk(view.getChildAt(index))
+                }
+            }
+        }
+        walk(decor)
     }
 
     /** 横竖屏切换 / 折叠屏展开时按键高度与安全区都要跟着变。 */

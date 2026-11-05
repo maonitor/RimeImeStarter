@@ -13,6 +13,7 @@ RimeImeStarter 主流 App 兼容性人工回归清单
 失败时请附 logcat 片段（scripts/ime-compat-adb.sh capture）与复现步骤编号。
 
 基线（必须全 P 才能继续测其他 App）
+  [ ] C00 键盘弹出不崩溃（真机实测曾 FAIL，已修复，每次覆盖安装后复测）
   [ ] C01 composing       [ ] C02 候选上屏       [ ] C03 空格提交
   [ ] C04 退格缩短        [ ] C05 光标移走       [ ] C06 密码框
   [ ] C07 动作键          [ ] C08 大小写         [ ] C09 符号/上滑
