@@ -115,7 +115,7 @@ class RimeImeService : InputMethodService() {
                 }
                 engine.close()
                 engine = rime
-                currentInputConnection?.finishComposingText()
+                withEditor { it.finishComposing() }
                 uiState = uiState.copy(
                     composing = "",
                     candidates = emptyList(),
@@ -207,7 +207,7 @@ class RimeImeService : InputMethodService() {
                 if (chineseWithBuffer) {
                     engine.process(action) { applyOutput(it) }
                 } else {
-                    currentInputConnection?.deleteSurroundingText(1, 0)
+                    withEditor { it.deleteBefore(1) }
                 }
             }
 
@@ -226,7 +226,7 @@ class RimeImeService : InputMethodService() {
                     editorAction != EditorInfo.IME_ACTION_UNSPECIFIED &&
                     editorAction != EditorInfo.IME_ACTION_NONE
                 ) {
-                    currentInputConnection?.performEditorAction(editorAction)
+                    withEditor { it.performAction(editorAction) }
                 } else {
                     applyOutput(EngineOutput(commit = "\n"))
                 }
@@ -235,7 +235,7 @@ class RimeImeService : InputMethodService() {
             KeyAction.ToggleLanguage -> {
                 if (!uiState.languageLocked) {
                     engine.reset()
-                    currentInputConnection?.finishComposingText()
+                    withEditor { it.finishComposing() }
                     uiState = uiState.copy(
                         chinese = !uiState.chinese,
                         composing = "",
@@ -253,25 +253,18 @@ class RimeImeService : InputMethodService() {
     private fun applyOutput(output: EngineOutput) {
         // 每次都重新取，绝不缓存：输入框切换、WebView 重载都会让旧连接失效。
         val ic = currentInputConnection ?: return
-        ic.beginBatchEdit()
-        try {
-            output.commit?.let { text ->
-                ic.finishComposingText()
-                ic.commitText(text, 1)
-            }
-            if (output.composing.isNotEmpty()) {
-                ic.setComposingText(output.composing, 1)
-            } else {
-                ic.finishComposingText()
-            }
-        } finally {
-            ic.endBatchEdit()
-        }
+        EditorOutputApplier.apply(AndroidEditorSink(ic), output)
         if (output.commit != null) engine.reset()
         uiState = uiState.copy(
             composing = output.composing,
             candidates = output.candidates,
         )
+    }
+
+    /** 零散的写入也走同一抽象，便于在单测里覆盖调用序列。 */
+    private fun withEditor(block: (EditorSink) -> Unit) {
+        val ic = currentInputConnection ?: return
+        block(AndroidEditorSink(ic))
     }
 
     private fun isPasswordEditor(info: EditorInfo): Boolean {

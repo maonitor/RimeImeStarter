@@ -14,6 +14,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 真机 arm64 + 模拟器 x86_64 足够；编全 ABI 会明显拖慢 native 构建。
         ndk {
@@ -65,4 +66,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.8.7")
     implementation("androidx.savedstate:savedstate:1.2.1")
+
+    // 兼容性用例集：本地单测覆盖写入序列，真机测试覆盖 IME 启用状态。
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
 }

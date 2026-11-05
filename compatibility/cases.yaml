@@ -1,0 +1,161 @@
+# 主流 App 兼容性用例集（机器可读；人工清单见 manual-regression.txt）
+version: 1
+ime_component: com.example.rimeime/.RimeImeService
+baseline: Android 13+ / arm64-v8a / 手势导航 + 三键导航各测一轮
+
+apps:
+  - id: native
+    name: 系统原生 EditText（设置/拨号/短信）
+    package: com.android.settings
+    role: baseline
+    notes: 这里失败即为输入法自身缺陷，先修它再看其他 App
+  - id: wechat
+    name: 微信（聊天框 / 搜索 / 朋友圈评论）
+    package: com.tencent.mm
+    risks: [自绘输入框对 composing 支持不一致, 回车动作随版本变化]
+  - id: qq
+    name: QQ
+    package: com.tencent.mobileqq
+    risks: [表情面板与键盘切换时 InputConnection 重建]
+  - id: alipay
+    name: 支付宝（搜索 / 金额 / 密码框）
+    package: com.eg.android.AlipayGphone
+    risks: [数字键盘 inputType, 支付密码框必须走英文模式]
+  - id: taobao
+    name: 淘宝（搜索框）
+    package: com.taobao.taobao
+    risks: [搜索框 performEditorAction=SEARCH]
+  - id: douyin
+    name: 抖音（评论 / 搜索）
+    package: com.ss.android.ugc.aweme
+    risks: [自绘输入框, 单行限制]
+  - id: xhs
+    name: 小红书（笔记编辑 / 评论）
+    package: com.xingin.xhs
+    risks: [多行 composing, 光标移动频繁]
+  - id: chrome
+    name: Chrome / 系统 WebView 网页表单
+    package: com.android.chrome
+    risks: [WebView 的 deleteSurroundingText 行为差异, 网页自己改写文本]
+  - id: flutter
+    name: Flutter 自绘输入框（任意 Flutter App）
+    package: n/a
+    risks: [TextInputConnection 对 composing 的支持差异最大]
+  - id: wework
+    name: 企业微信 / 钉钉
+    package: com.tencent.wework
+    risks: [输入框切换频繁, 企业定制 ROM]
+  - id: note
+    name: 备忘录 / 多行文本编辑器
+    package: n/a
+    risks: [换行, 长文本 composing]
+
+cases:
+  - id: C01
+    title: 拼音串进入 composing 区
+    apps: [native, wechat, qq, chrome, flutter, xhs, note]
+    steps: [切到中文, 依次按 n i h a o]
+    expected: [输入框显示带下划线的 nihao, 候选栏出现候选, 未上屏]
+    risk: 部分自绘输入框把 setComposingText 当成普通文本
+  - id: C02
+    title: 候选上屏替换 composing
+    apps: [native, wechat, qq, chrome, flutter, xhs, note]
+    steps: [C01 后点击"你好"]
+    expected: [输入框只剩"你好", 无残留拼音, 光标在词后]
+    risk: finishComposingText 与 commitText 顺序错误会重复文本
+  - id: C03
+    title: 空格提交首选候选
+    apps: [native, wechat, qq, taobao, chrome]
+    steps: [C01 后按空格]
+    expected: [上屏首选候选且不留空格]
+  - id: C04
+    title: 退格缩短 composing
+    apps: [native, wechat, chrome, flutter]
+    steps: [C01 后按一次退格]
+    expected: [composing 变 niha, 候选同步刷新]
+  - id: C05
+    title: 光标移走后 composing 被清理
+    apps: [native, wechat, xhs, note, chrome]
+    steps: [C01 后用手指点输入框别处, 再按一个字母]
+    expected: [从新拼音开始, 不出现"删不掉的旧拼音"]
+    risk: onUpdateSelection 未清空引擎 buffer 时的典型 bug
+  - id: C06
+    title: 密码框强制英文且不记录输入
+    apps: [native, alipay, wechat, taobao]
+    steps: [聚焦密码框, 尝试按"中/En"切换, 输入若干字符]
+    expected: [候选栏显示"密码框：不记录输入", 无法切中文, 用户词库无新增]
+    risk: 密码进入拼音引擎/词库属于合规红线
+  - id: C07
+    title: EditorInfo 动作键
+    apps: [taobao, chrome, native, wechat]
+    steps: [聚焦搜索框, 观察回车键文案, 输入后按回车]
+    expected: [显示"搜索/发送/完成", 触发目标 App 动作而非插入换行]
+  - id: C08
+    title: 英文模式大小写与 Shift 自动复位
+    apps: [native, wechat, chrome]
+    steps: [切英文, 按 Shift, 按 a, 再按 b]
+    expected: [得到 Ab, Shift 自动复位]
+  - id: C09
+    title: 符号键盘与上滑符号
+    apps: [native, wechat, note]
+    steps: [点 ?123 输入标点, 返回字母页, 在 q 上向上滑]
+    expected: [分别上屏标点与 1, 按键按下即有视觉反馈]
+  - id: C10
+    title: 退格长按连续删除
+    apps: [native, note, xhs]
+    steps: [输入一段文字, 长按退格 1 秒]
+    expected: [约 400ms 后开始连删, 松手立即停止]
+  - id: C11
+    title: 普通退格删除已上屏文本
+    apps: [native, wechat, chrome, flutter]
+    steps: [上屏"你好", 再按退格]
+    expected: [删除一个字符且不误删 surrounding 之外的内容]
+    risk: deleteSurroundingText 在 WebView / Flutter 中常被忽略
+  - id: C12
+    title: 多行文本框换行
+    apps: [note, xhs, native]
+    steps: [无 composing 时按回车]
+    expected: [插入换行, 不触发 editorAction]
+  - id: C13
+    title: 中文输入中按回车提交拼音原文
+    apps: [native, wechat, note]
+    steps: [C01 后按回车]
+    expected: [上屏 nihao 原文, 用户输入不丢失]
+  - id: C14
+    title: 横屏不遮挡输入框
+    apps: [native, wechat, chrome]
+    steps: [横屏后聚焦输入框]
+    expected: [禁用全屏编辑模式, 候选栏可见, 按键变矮但不被裁切]
+  - id: C15
+    title: 手势导航条不压住最底排按键
+    apps: [native, wechat, chrome]
+    steps: [分别用三键导航与手势导航聚焦输入框]
+    expected: [底排按键完整可见可点, 底部安全区适中不过度留白]
+    risk: IME 窗口 rootWindowInsets 在部分 ROM 返回 0
+  - id: C16
+    title: 折叠屏展开 / 平板按键高度
+    apps: [native, note]
+    steps: [展开折叠屏或旋屏]
+    expected: [按键高度随 smallestScreenWidthDp / orientation 重算, 无拉伸变形]
+  - id: C17
+    title: 快速连打不错乱
+    apps: [native, wechat, note]
+    steps: [连续快速输入 10 个字母并立即点候选]
+    expected: [composing 与候选始终一致, 无乱序或重复上屏]
+    risk: librime 异步结果回主线程顺序 / generation 作废旧结果
+  - id: C18
+    title: librime 就绪后热切换
+    apps: [native]
+    steps: [放入 jniLibs/arm64-v8a/librime.so 后重装, 打开键盘输入]
+    expected: [候选栏标签从 mock 变为 rime <版本>, 输入走真实引擎, 部署期间不卡键盘]
+  - id: C19
+    title: 覆盖安装后仍可调出
+    apps: [native, wechat]
+    steps: [覆盖安装新版后直接点输入框]
+    expected: [键盘正常弹出]
+    risk: 系统缓存旧 IME，必要时重新选一次输入法或重启设备
+  - id: C20
+    title: 应用间切换不残留 composing
+    apps: [wechat, chrome, note]
+    steps: [C01 未上屏时切到另一个 App 的输入框]
+    expected: [新输入框从空 composing 开始]
