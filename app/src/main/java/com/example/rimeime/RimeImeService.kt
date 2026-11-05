@@ -1,5 +1,6 @@
 package com.example.rimeime
 
+import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
@@ -11,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.view.doOnAttach
 import com.example.rimeime.engine.InputEngine
 import com.example.rimeime.engine.MockPinyinEngine
 import com.example.rimeime.engine.RimeBridge
@@ -36,6 +38,7 @@ class RimeImeService : InputMethodService() {
     private var editorAction = EditorInfo.IME_ACTION_UNSPECIFIED
     private var passwordField = false
     private var destroyed = false
+    private var inputViewRef: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
@@ -57,16 +60,32 @@ class RimeImeService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         val owner = checkNotNull(imeOwner)
-        return ComposeView(this).apply {
+        val view = ComposeView(this).apply {
             // InputMethodService 不是 Activity，三个 owner 必须手动挂上，缺一即崩。
             // 交给 Java 辅助类：新版 lifecycle 把这些 ViewTree*Owner 对 Kotlin 隐藏了。
             ImeViewTreeOwners.attach(this, owner)
+            // View attach 之后才能读到 rootWindowInsets，此时重算一次底部安全区。
+            doOnAttach { attached ->
+                uiState = uiState.copy(
+                    metrics = KeyboardMetricsCalculator.compute(this@RimeImeService, attached),
+                )
+            }
             setContent {
                 ImeKeyboardTheme {
                     ImeKeyboard(state = uiState, onAction = ::handleAction)
                 }
             }
         }
+        inputViewRef = view
+        return view
+    }
+
+    /** 横竖屏切换 / 折叠屏展开时按键高度与安全区都要跟着变。 */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        uiState = uiState.copy(
+            metrics = KeyboardMetricsCalculator.compute(this, inputViewRef),
+        )
     }
 
     /**
@@ -121,7 +140,11 @@ class RimeImeService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         engine.reset()
-        uiState = uiState.copy(composing = "", candidates = emptyList())
+        uiState = uiState.copy(
+            composing = "",
+            candidates = emptyList(),
+            metrics = KeyboardMetricsCalculator.compute(this, inputViewRef),
+        )
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {

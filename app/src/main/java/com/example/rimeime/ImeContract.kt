@@ -26,6 +26,8 @@ data class ImeUiState(
     val languageLocked: Boolean = false,
     /** 当前实际使用的引擎，显示在候选栏，便于验证 librime 是否接上。 */
     val engineLabel: String = "mock",
+    /** 按键高度与 IME 窗口安全区，由 Service 侧按屏幕形态计算。 */
+    val metrics: KeyboardMetrics = KeyboardMetrics(),
 )
 
 /**
