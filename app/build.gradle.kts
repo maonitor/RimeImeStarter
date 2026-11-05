@@ -14,6 +14,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        // 真机 arm64 + 模拟器 x86_64 足够；编全 ABI 会明显拖慢 native 构建。
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -39,11 +44,16 @@ android {
         compose = true
     }
 
-    // 接入 librime 时再打开：
-    // externalNativeBuild {
-    //     cmake { path = file("src/main/cpp/CMakeLists.txt") }
-    // }
-    // ndk { abiFilters += listOf("arm64-v8a") }
+    ndkVersion = "27.0.12077973"
+
+    // 编译自己的 JNI 桥 libimebridge.so。它只依赖系统库，
+    // librime.so 在运行时 dlopen，因此没有 .so 也能正常编译与降级运行。
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 
 dependencies {

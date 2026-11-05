@@ -1,0 +1,78 @@
+---
+name: luna_pinyin
+version: "1.0"
+sort: by_weight
+...
+# 词条 <TAB> 拼音 <TAB> 词频。生产环境请替换为完整词库。
+啊	a	100
+阿	a	80
+爱	ai	100
+矮	ai	60
+八	ba	100
+把	ba	95
+吧	ba	80
+爸	ba	70
+不	bu	100
+部	bu	80
+步	bu	70
+的	de	100
+得	de	85
+地	de	85
+好	hao	100
+号	hao	80
+很	hen	100
+界	jie	90
+接	jie	85
+解	jie	80
+吗	ma	100
+妈	ma	90
+马	ma	85
+你	ni	100
+尼	ni	60
+是	shi	100
+时	shi	95
+事	shi	85
+十	shi	80
+我	wo	100
+握	wo	60
+谢	xie	90
+写	xie	85
+些	xie	80
+中	zhong	100
+种	zhong	85
+重	zhong	80
+文	wen	100
+问	wen	90
+字	zi	100
+自	zi	90
+输入	shu ru	100
+输入法	shu ru fa	100
+你好	ni hao	100
+我们	wo men	100
+世界	shi jie	100
+中文	zhong wen	100
+谢谢	xie xie	90
+拼音	pin yin	90
+键盘	jian pan	90
+候选	hou xuan	80
+词库	ci ku	80
+部署	bu shu	80
+引擎	yin qing	80
+安卓	an zhuo	80
+手机	shou ji	80
+测试	ce shi	80
+开发	kai fa	80
+代码	dai ma	80
+项目	xiang mu	80
+工作	gong zuo	80
+时间	shi jian	80
+今天	jin tian	80
+明天	ming tian	80
+您好	nin hao	80
+再见	zai jian	80
+中国	zhong guo	90
+北京	bei jing	80
+上海	shang hai	80
+广州	guang zhou	70
+深圳	shen zhen	70
+rime	rime	50

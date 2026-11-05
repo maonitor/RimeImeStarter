@@ -4,17 +4,26 @@ import com.example.rimeime.EngineOutput
 import com.example.rimeime.KeyAction
 
 /**
- * 最小中文输入闭环：按键 → 拼音串 → 候选 → 上屏。
+ * 降级用中文引擎：按键 → 拼音串 → 候选 → 上屏。
  *
- * 这里刻意只做「整串查表 + 用户词频」，没做音节切分、模糊音和 N-gram 打分。
- * 换成 librime 时，把 process() 内部替换成对 RimeBridge 的调用即可。
+ * 只做「整串查表 + 用户词频」，没做音节切分、模糊音和 N-gram 打分。
+ * librime.so 缺失或部署失败时，输入法靠它继续可用。
  */
 class MockPinyinEngine : InputEngine {
 
     private val buffer = StringBuilder()
     private val userFreq = mutableMapOf<String, Int>()
 
-    override fun process(action: KeyAction): EngineOutput = when (action) {
+    override fun process(action: KeyAction, onResult: (EngineOutput) -> Unit) {
+        onResult(processSync(action))
+    }
+
+    override fun reset(onDone: (() -> Unit)?) {
+        buffer.clear()
+        onDone?.invoke()
+    }
+
+    private fun processSync(action: KeyAction): EngineOutput = when (action) {
         is KeyAction.Letter -> {
             buffer.append(action.char.lowercaseChar())
             snapshot()
@@ -35,16 +44,12 @@ class MockPinyinEngine : InputEngine {
         else -> snapshot()
     }
 
-    override fun reset() {
-        buffer.clear()
-    }
-
     private fun commit(word: String?): EngineOutput {
         val text = word ?: buffer.toString()
         if (text.isNotEmpty() && word != null) {
             userFreq[word] = (userFreq[word] ?: 0) + 1
         }
-        reset()
+        buffer.clear()
         return EngineOutput(commit = text.ifEmpty { null })
     }
 

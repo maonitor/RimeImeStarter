@@ -120,6 +120,12 @@ private fun CandidateBar(state: ImeUiState, onAction: (KeyAction) -> Unit) {
             }
         }
         Text(
+            text = state.engineLabel,
+            fontSize = 10.sp,
+            color = Color(0xFF8A9099),
+            modifier = Modifier.padding(end = 6.dp),
+        )
+        Text(
             text = "收起",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.primary,

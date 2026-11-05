@@ -1,7 +1,10 @@
 package com.example.rimeime
 
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.getValue
@@ -10,22 +13,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import com.example.rimeime.engine.InputEngine
 import com.example.rimeime.engine.MockPinyinEngine
+import com.example.rimeime.engine.RimeBridge
+import com.example.rimeime.engine.RimeDeployer
+import com.example.rimeime.engine.RimeEngine
 import com.example.rimeime.ui.ImeKeyboard
 import com.example.rimeime.ui.ImeKeyboardTheme
 
 /**
- * 最小可用的中文输入法 Service。
+ * 输入法 Service。
  *
  * 架构约定：状态与 InputConnection 都留在 Service 侧，Compose 只负责渲染和派发意图。
- * 这样换引擎（MockPinyinEngine → RimeEngine）、换 UI 都互不影响。
+ * 引擎通过 InputEngine 接口隔离，且是回调式（librime 的 native 调用在后台线程）。
+ *
+ * 启动策略：先用 MockPinyinEngine 保证立刻能打字，同时在后台部署 librime；
+ * 部署成功后热切换到 RimeEngine，失败则一直用 mock（无 librime.so 时必然如此）。
  */
 class RimeImeService : InputMethodService() {
 
-    private val engine: InputEngine = MockPinyinEngine()
+    private var engine: InputEngine = MockPinyinEngine()
     private var uiState by mutableStateOf(ImeUiState())
     private var imeOwner: ImeLifecycleOwner? = null
     private var editorAction = EditorInfo.IME_ACTION_UNSPECIFIED
     private var passwordField = false
+    private var destroyed = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
@@ -33,9 +44,12 @@ class RimeImeService : InputMethodService() {
             onCreate()
             onResume()
         }
+        prepareRimeEngine()
     }
 
     override fun onDestroy() {
+        destroyed = true
+        engine.close()
         imeOwner?.onDestroy()
         imeOwner = null
         super.onDestroy()
@@ -53,6 +67,43 @@ class RimeImeService : InputMethodService() {
                 }
             }
         }
+    }
+
+    /**
+     * 首次 deploy 会编译词典，可能耗时数秒。放在后台线程，
+     * 成功后再切主线程换引擎，避免阻塞键盘冷启动。
+     */
+    private fun prepareRimeEngine() {
+        Thread({
+            val ready = try {
+                RimeDeployer(this@RimeImeService).prepare()
+            } catch (t: Throwable) {
+                Log.w(TAG, "librime 部署失败，继续使用 mock 引擎", t)
+                false
+            }
+            if (!ready || destroyed) return@Thread
+            mainHandler.post {
+                if (destroyed) return@post
+                val rime = try {
+                    RimeEngine()
+                } catch (t: Throwable) {
+                    Log.w(TAG, "RimeEngine 创建失败", t)
+                    null
+                }
+                if (rime == null || !rime.isReady) {
+                    rime?.close()
+                    return@post
+                }
+                engine.close()
+                engine = rime
+                currentInputConnection?.finishComposingText()
+                uiState = uiState.copy(
+                    composing = "",
+                    candidates = emptyList(),
+                    engineLabel = "rime ${RimeBridge.version}",
+                )
+            }
+        }, "rime-prepare").start()
     }
 
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
@@ -100,7 +151,7 @@ class RimeImeService : InputMethodService() {
         }
     }
 
-    /** 横屏全屏模式会盖住输入框并让候选栏失效，最小工程先禁用。 */
+    /** 横屏全屏模式会盖住输入框并让候选栏失效。 */
     override fun onEvaluateFullscreenMode(): Boolean = false
 
     override fun onComputeInsets(outInsets: InputMethodService.Insets) {
@@ -113,7 +164,7 @@ class RimeImeService : InputMethodService() {
         when (action) {
             is KeyAction.Letter -> {
                 if (uiState.chinese) {
-                    applyOutput(engine.process(KeyAction.Letter(action.char.lowercaseChar())))
+                    engine.process(KeyAction.Letter(action.char.lowercaseChar())) { applyOutput(it) }
                 } else {
                     val c = if (uiState.shifted) {
                         action.char.uppercaseChar()
@@ -127,11 +178,11 @@ class RimeImeService : InputMethodService() {
 
             is KeyAction.Symbol -> applyOutput(EngineOutput(commit = action.char.toString()))
 
-            is KeyAction.SelectCandidate -> applyOutput(engine.process(action))
+            is KeyAction.SelectCandidate -> engine.process(action) { applyOutput(it) }
 
             KeyAction.Backspace -> {
                 if (chineseWithBuffer) {
-                    applyOutput(engine.process(action))
+                    engine.process(action) { applyOutput(it) }
                 } else {
                     currentInputConnection?.deleteSurroundingText(1, 0)
                 }
@@ -139,7 +190,7 @@ class RimeImeService : InputMethodService() {
 
             KeyAction.Space -> {
                 if (chineseWithBuffer) {
-                    applyOutput(engine.process(action))
+                    engine.process(action) { applyOutput(it) }
                 } else {
                     applyOutput(EngineOutput(commit = " "))
                 }
@@ -147,7 +198,7 @@ class RimeImeService : InputMethodService() {
 
             KeyAction.Enter -> {
                 if (chineseWithBuffer) {
-                    applyOutput(engine.process(action))
+                    engine.process(action) { applyOutput(it) }
                 } else if (
                     editorAction != EditorInfo.IME_ACTION_UNSPECIFIED &&
                     editorAction != EditorInfo.IME_ACTION_NONE
@@ -217,5 +268,9 @@ class RimeImeService : InputMethodService() {
         EditorInfo.IME_ACTION_DONE -> "完成"
         EditorInfo.IME_ACTION_NEXT -> "下一个"
         else -> "回车"
+    }
+
+    private companion object {
+        const val TAG = "RimeImeService"
     }
 }

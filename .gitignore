@@ -9,6 +9,7 @@ local.properties
 # Log/OS Files
 *.log
 build-log*.txt
+build-*.txt
 .DS_Store
 Thumbs.db
 
