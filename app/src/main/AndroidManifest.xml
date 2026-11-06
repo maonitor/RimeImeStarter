@@ -11,6 +11,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RimeIme">
 
+        <!-- 兼容性回归专用宿主页面，供 adb / instrumentation 测试拉起 -->
+        <activity
+            android:name=".CompatTestActivity"
+            android:exported="true"
+            android:label="Compat Test" />
+
         <activity
             android:name=".ImeSettingsActivity"
             android:exported="true"

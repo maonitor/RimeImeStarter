@@ -53,6 +53,7 @@ class RimeDeployer(private val context: Context) {
 
     private companion object {
         const val DATA_ASSET_DIR = "rime"
-        const val DATA_STAMP = ".rime-data-v1"
+        // schema 变更时必须升级，否则旧数据不会重新复制/重新部署。
+        const val DATA_STAMP = ".rime-data-v2"
     }
 }

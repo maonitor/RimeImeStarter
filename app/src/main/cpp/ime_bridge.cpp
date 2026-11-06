@@ -187,7 +187,13 @@ Java_com_example_rimeime_engine_RimeBridge_nativeGetCandidates(JNIEnv* env, jobj
   RimeContext ctx{};
   RIME_STRUCT_INIT(RimeContext, ctx);
   std::vector<std::string> words;
-  if (gApi->get_context(static_cast<RimeSessionId>(session), &ctx)) {
+  const bool hasContext = gApi->get_context(static_cast<RimeSessionId>(session), &ctx);
+  // 排查「有拼音串但没候选」时最有用的一行：区分是引擎没出候选还是 JNI 读错。
+  __android_log_print(ANDROID_LOG_DEBUG, kTag,
+                      "get_context=%d num_candidates=%d preedit=%s",
+                      hasContext ? 1 : 0, ctx.menu.num_candidates,
+                      ctx.composition.preedit != nullptr ? ctx.composition.preedit : "(null)");
+  if (hasContext) {
     for (int i = 0; i < ctx.menu.num_candidates && ctx.menu.candidates != nullptr; ++i) {
       const char* text = ctx.menu.candidates[i].text;
       words.emplace_back(text != nullptr ? text : "");

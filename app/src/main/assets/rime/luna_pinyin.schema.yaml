@@ -16,6 +16,13 @@ engine:
     - selector
     - navigator
     - express_editor
+  # 缺少 segmentors 时 Rime 不会把输入切成分段，script_translator 永远产不出候选。
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
   translators:
     - script_translator
   filters:
@@ -23,7 +30,6 @@ engine:
 
 speller:
   alphabet: zyxwvutsrqponmlkjihgfedcba
-  initials: zyxwvutsrqponmlkjihgfedcba
   delimiter: " '"
 
 translator:

@@ -34,12 +34,13 @@ class EditorOutputApplierTest {
         assertEquals(listOf("begin", "composing:nihao", "end"), sink.calls)
     }
 
+    /** 回归 C02：真机上曾出现 "nihao你好"，因为 commit 前先 finish 了 composing。 */
     @Test
-    fun commit_finishesComposingBeforeCommit() {
+    fun commit_replacesComposingWithoutFinishingFirst() {
         val sink = RecordingSink()
         EditorOutputApplier.apply(sink, EngineOutput(commit = "你好"))
         assertEquals(
-            listOf("begin", "finish", "commit:你好", "finish", "end"),
+            listOf("begin", "commit:你好", "finish", "end"),
             sink.calls,
         )
     }

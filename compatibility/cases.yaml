@@ -68,7 +68,7 @@ cases:
     apps: [native, wechat, qq, chrome, flutter, xhs, note]
     steps: [C01 后点击"你好"]
     expected: [输入框只剩"你好", 无残留拼音, 光标在词后]
-    risk: finishComposingText 与 commitText 顺序错误会重复文本
+    risk: 真机实测曾出现 "nihao你好"——commit 前先 finishComposingText 会固化拼音串；已修为直接 commitText
   - id: C03
     title: 空格提交首选候选
     apps: [native, wechat, qq, taobao, chrome]

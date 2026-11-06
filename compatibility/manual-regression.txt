@@ -1,5 +1,7 @@
 RimeImeStarter 主流 App 兼容性人工回归清单
-用例定义见 cases.yaml（C01..C20）
+用例定义见 cases.yaml（C00..C20）
+首轮真机结果见 run-2026-11-06.txt；自动化宿主为 CompatTestActivity
+（adb shell am start -n com.example.rimeime/.CompatTestActivity）
 
 设备信息
   设备型号 / ROM        : ______________________________

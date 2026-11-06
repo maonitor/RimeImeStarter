@@ -1,0 +1,54 @@
+RimeImeStarter 真机首轮回归结果（C01–C20）
+==========================================
+时间   : 2026-11-06 14:44 - 15:25
+设备   : vivo V2199A / Android 13 (SDK 33) / 1080x2400 @480dpi / 三键导航 / 竖屏
+引擎   : 真 librime 1.12.0（arm64-v8a），候选栏标签 rime 1.12.0，非 mock
+宿主   : 新增 CompatTestActivity（4 类输入框 + mirror TextView，uiautomator 可断言）
+截图   : compatibility/report/shot-09 .. shot-22（该目录不入库）
+
+结果
+----
+C00  PASS  键盘弹出无 FATAL EXCEPTION，mInputShown=true，mBoundToMethod=true
+C01  PASS  输入 nihao → 输入框带下划线 composing，候选栏出现「你好 / 你 / 尼」
+C02  PASS  首测 FAIL 后修复：曾得到 "nihao你好"，去掉 commit 前的
+           finishComposingText 后得到 "你好"（mirror: normal=你好）
+C03  PASS  shi + 空格 → 上屏「是」（mirror: normal=是）
+C04  PASS  nihao + 退格 → composing 变 niha（mirror: normal=是niha）
+C05  未跑  需手动移动光标，脚本未覆盖
+C06  未取证  ROM 权限页多次顶到前台，未取得密码框截图；代码逻辑已实现，待人工确认
+C07  PASS  搜索框聚焦时动作键显示「搜索」（浏览器搜索页 + 自测页均验证）
+C08  未跑  英文模式大小写 / Shift 自动复位
+C09  部分  截图确认字母键右上角上滑符号可见；手势本身未逐键验证
+C10  未跑  长按连删
+C11  未跑  已上屏文本的普通退格
+C12  部分  普通输入框动作键显示「回车」（IME_ACTION_NONE）；换行未验证
+C13  未跑  中文输入中按回车提交拼音原文
+C14  未跑  横屏
+C15  未跑  手势导航条（本机为三键导航，shot-09/15 未见底排遮挡）
+C16  N/A   折叠屏 / 平板
+C17  部分  5 键 0.4s 间隔输入未见乱序；未做高速连打
+C18  PASS  引擎标签 rime 1.12.0；部署产物 luna_pinyin.table.bin / prism.bin /
+           reverse.bin 齐全，installation.yaml rime_version: 1.12.0
+C19  PASS  多次覆盖安装后重新选择输入法即正常（vivo 每次安装需机主确认）
+C20  未跑  应用间切换不残留 composing
+
+本轮发现并修复
+--------------
+1. 最小 schema 缺 engine/segmentors → script_translator 永远不产候选。
+   补 ascii/matcher/abc/punct/fallback 五个 segmentor，并删掉填错的
+   speller/initials 后，真候选出现（根因）。
+2. EditorOutputApplier 在 commit 前先调 finishComposingText → composing
+   被固化，commitText 追加汉字得到 "nihao你好"。改为直接 commitText
+   （InputConnection.commitText 本身会替换 composing region），单测断言同步修正。
+3. 离开密码框后英文模式不恢复，会污染后续所有输入框；onStartInput 增加
+   wasPasswordField 判断，离开时恢复中文。
+4. RimeDeployer 的 assets stamp 升级为 v2，schema 变更可强制重新部署。
+5. ime_bridge.cpp 的 nativeGetCandidates 增加 get_context / num_candidates 诊断日志。
+6. vivo 上隐式 WEB_SEARCH 会弹应用选择器、浏览器首页内容会变，固定坐标
+   不可靠 → 新增 CompatTestActivity 作为稳定回归宿主。
+
+遗留
+----
+- C06 需人工确认候选栏「密码框：不记录输入」与「En」键、以及密码不进用户词库
+- 其余未跑用例按 compatibility/manual-regression.txt 逐项人工回归
+- 设备默认输入法已恢复为 com.baidu.input_vivo/.ImeVivoService

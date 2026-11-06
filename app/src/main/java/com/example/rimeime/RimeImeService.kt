@@ -38,6 +38,7 @@ class RimeImeService : InputMethodService() {
     private var imeOwner: ImeLifecycleOwner? = null
     private var editorAction = EditorInfo.IME_ACTION_UNSPECIFIED
     private var passwordField = false
+    private var wasPasswordField = false
     private var destroyed = false
     private var inputViewRef: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -158,11 +159,19 @@ class RimeImeService : InputMethodService() {
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
         super.onStartInput(info, restarting)
         editorAction = info.imeOptions and EditorInfo.IME_MASK_ACTION
-        passwordField = isPasswordEditor(info)
+        val nowPassword = isPasswordEditor(info)
+        val leavingPassword = wasPasswordField && !nowPassword
+        passwordField = nowPassword
+        wasPasswordField = nowPassword
         uiState = uiState.copy(
             // 密码框强制英文：既不把用户输入送进拼音引擎，也不写入用户词库。
-            chinese = if (passwordField) false else uiState.chinese,
-            languageLocked = passwordField,
+            // 离开密码框必须恢复中文，否则一次密码输入会污染后续所有输入框。
+            chinese = when {
+                nowPassword -> false
+                leavingPassword -> true
+                else -> uiState.chinese
+            },
+            languageLocked = nowPassword,
             enterLabel = enterLabel(editorAction),
         )
     }

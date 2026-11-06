@@ -35,8 +35,9 @@ object EditorOutputApplier {
         sink.beginBatch()
         try {
             output.commit?.let { text ->
-                // 先结束 composing，再 commit，避免部分 App 把两者叠加成重复文本。
-                sink.finishComposing()
+                // 真机实测（C02）：先 finishComposingText() 会把拼音串固化成已上屏文本，
+                // 再 commitText 就得到 "nihao你好"。InputConnection.commitText 本身
+                // 就会替换当前 composing region，所以这里直接 commit，不要先 finish。
                 sink.commit(text)
             }
             if (output.composing.isNotEmpty()) {
