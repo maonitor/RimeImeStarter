@@ -41,3 +41,6 @@ google-services.json
 # Test reports / compatibility matrix artifacts
 app/build/reports/
 compatibility/report/
+
+# librime 源码交叉编译的中间产物（脚本默认 WORK 目录）
+.librime-build/
